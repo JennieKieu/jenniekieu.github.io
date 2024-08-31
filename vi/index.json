@@ -1,0 +1,78 @@
+[
+{
+	"uri": "/vi/",
+	"title": "Tạo API HTTP CRUD với Lambda và DynamoDB",
+	"tags": [],
+	"description": "",
+	"content": "Tạo API HTTP CRUD với Lambda và DynamoDB Tổng quan Trong hướng dẫn này, bạn sẽ tạo một API không máy chủ (serverless) để thực hiện các thao tác tạo, đọc, cập nhật và xóa các mục từ một bảng DynamoDB. DynamoDB là một dịch vụ cơ sở dữ liệu NoSQL được quản lý hoàn toàn, cung cấp hiệu suất nhanh chóng và có thể dự đoán được với khả năng mở rộng liền mạch.\nNội dung Tạo bảng DynamoDB Tạo hàm Lambda Tạo API HTTP Tạo các Route Tạo tích hợp Gán Tích hợp vào các Route Kiểm tra API của bạn Dọn dẹp tài nguyên "
+},
+{
+	"uri": "/vi/1-dynamodb/",
+	"title": "Tạo bảng DynamoDB",
+	"tags": [],
+	"description": "",
+	"content": "Bạn sẽ sử dụng một bảng DynamoDB để lưu trữ dữ liệu cho API của mình. Mỗi mục sẽ có một ID duy nhất, mà chúng ta sẽ sử dụng làm khóa phân vùng (partition key) cho bảng.\nĐể tạo một bảng DynamoDB:\nMở bảng điều khiển DynamoDB tại https://console.aws.amazon.com/dynamodb/.\nChọn Create table. Đối với Table name, nhập http-crud-tutorial-items.\nĐối với Partition key, nhập id. Chọn Create table. "
+},
+{
+	"uri": "/vi/2-lambda/",
+	"title": "Tạo hàm Lambda ",
+	"tags": [],
+	"description": "",
+	"content": "Bạn sẽ tạo một hàm Lambda để xử lý backend cho API của mình. Hàm Lambda này sẽ thực hiện các thao tác tạo, đọc, cập nhật và xóa các mục từ DynamoDB. Hàm sử dụng các sự kiện từ API Gateway để xác định cách tương tác với DynamoDB. Để đơn giản, hướng dẫn này chỉ sử dụng một hàm Lambda duy nhất. Tuy nhiên, theo nguyên tắc tốt nhất, bạn nên tạo các hàm riêng biệt cho từng route.\nĐể tạo một hàm Lambda:\nĐăng nhập vào bảng điều khiển Lambda tại https://console.aws.amazon.com/lambda.\nChọn Create function. Đối với Function name, nhập http-crud-tutorial-function.\nĐối với Runtime, chọn Node.js hoặc Python phiên bản mới nhất được hỗ trợ.\nDưới Permissions, chọn Change default execution role.\nChọn Create a new role from AWS policy templates. Đối với Role name, nhập http-crud-tutorial-role-demo.\nĐối với Policy templates, chọn Simple microservice permissions. Chính sách này cấp quyền cho hàm Lambda để tương tác với DynamoDB.\nChọn Create function. Mở hàm Lambda trong trình chỉnh sửa mã của bảng điều khiển, và thay thế nội dung hiện tại bằng mã sau. Chọn Deploy để cập nhật hàm của bạn.\nimport { DynamoDBClient } from \u0026#34;@aws-sdk/client-dynamodb\u0026#34;; import { DynamoDBDocumentClient, ScanCommand, PutCommand, GetCommand, DeleteCommand, } from \u0026#34;@aws-sdk/lib-dynamodb\u0026#34;; const client = new DynamoDBClient({}); const dynamo = DynamoDBDocumentClient.from(client); const tableName = \u0026#34;http-crud-tutorial-items\u0026#34;; export const handler = async (event, context) =\u0026gt; { let body; let statusCode = 200; const headers = { \u0026#34;Content-Type\u0026#34;: \u0026#34;application/json\u0026#34;, }; try { switch (event.routeKey) { case \u0026#34;DELETE /items/{id}\u0026#34;: await dynamo.send( new DeleteCommand({ TableName: tableName, Key: { id: event.pathParameters.id, }, }) ); body = `Deleted item ${event.pathParameters.id}`; break; case \u0026#34;GET /items/{id}\u0026#34;: body = await dynamo.send( new GetCommand({ TableName: tableName, Key: { id: event.pathParameters.id, }, }) ); body = body.Item; break; case \u0026#34;GET /items\u0026#34;: body = await dynamo.send( new ScanCommand({ TableName: tableName }) ); body = body.Items; break; case \u0026#34;PUT /items\u0026#34;: let requestJSON = JSON.parse(event.body); await dynamo.send( new PutCommand({ TableName: tableName, Item: { id: requestJSON.id, price: requestJSON.price, name: requestJSON.name, }, }) ); body = `Put item ${requestJSON.id}`; break; default: throw new Error(`Unsupported route: \u0026#34;${event.routeKey}\u0026#34;`); } } catch (err) { statusCode = 400; body = err.message; } finally { body = JSON.stringify(body); } return { statusCode, body, headers, }; }; "
+},
+{
+	"uri": "/vi/3-httpapi/",
+	"title": "Tạo một API HTTP",
+	"tags": [],
+	"description": "",
+	"content": "API HTTP cung cấp một điểm cuối HTTP cho hàm Lambda của bạn. Trong bước này, bạn sẽ tạo một API trống. Trong các bước tiếp theo, bạn sẽ cấu hình các route và tích hợp để kết nối API của bạn với hàm Lambda.\nĐể tạo một API HTTP:\nĐăng nhập vào bảng điều khiển API Gateway tại https://console.aws.amazon.com/apigateway.\nChọn Create API, và sau đó đối với HTTP API, chọn Build. Đối với API name, nhập http-crud-tutorial-api-demo.\nChọn Next. Đối với Configure routes, chọn Next để bỏ qua việc tạo route. Bạn sẽ tạo các route sau. Xem xét giai đoạn mà API Gateway tạo cho bạn, sau đó chọn Next. Chọn Create. "
+},
+{
+	"uri": "/vi/4-routes/",
+	"title": "Tạo các Route",
+	"tags": [],
+	"description": "",
+	"content": "Routes là cách để gửi các yêu cầu API đến các tài nguyên backend. Một route bao gồm hai phần: phương thức HTTP và đường dẫn tài nguyên, ví dụ: GET /items. Đối với API ví dụ này, chúng ta tạo bốn route:\nGET /items/{id} GET /items PUT /items DELETE /items/{id} Để tạo các route:\nĐăng nhập vào bảng điều khiển API Gateway tại https://console.aws.amazon.com/apigateway.\nChọn API của bạn. Chọn Routes.\nChọn Create. Đối với Method, chọn GET.\nĐối với Path, nhập /items/{id}. Phần {id} ở cuối đường dẫn là một tham số đường dẫn mà API Gateway sẽ lấy từ đường dẫn yêu cầu khi một khách hàng gửi yêu cầu.\nChọn Create. Repeat steps 4-7 for GET /items, DELETE /items/{id}, and PUT /items. "
+},
+{
+	"uri": "/vi/5-integration/",
+	"title": "Tạo một Tích hợp (Integration)",
+	"tags": [],
+	"description": "",
+	"content": "Bạn tạo một tích hợp để kết nối một route với các tài nguyên backend. Đối với API ví dụ này, bạn tạo một tích hợp Lambda mà bạn sẽ sử dụng cho tất cả các route.\nĐể tạo một tích hợp:\nĐăng nhập vào bảng điều khiển API Gateway tại https://console.aws.amazon.com/apigateway.\nChọn API của bạn. Chọn Integrations.\nChọn Manage integrations, sau đó chọn Create. Bỏ qua Attach this integration to a route. Bạn sẽ hoàn thành việc này trong bước sau.\nĐối với Integration type, chọn Lambda function.\nĐối với Lambda function, nhập http-crud-tutorial-function.\nChọn Create. "
+},
+{
+	"uri": "/vi/6-attachyourintegration/",
+	"title": "Gán Tích hợp vào Các Route",
+	"tags": [],
+	"description": "",
+	"content": "Đối với API ví dụ này, bạn sử dụng cùng một tích hợp Lambda cho tất cả các route. Sau khi gán tích hợp cho tất cả các route của API, hàm Lambda của bạn sẽ được gọi khi một khách hàng gọi bất kỳ route nào của bạn.\nĐể gán tích hợp vào các route:\nĐăng nhập vào bảng điều khiển API Gateway tại https://console.aws.amazon.com/apigateway.\nChọn API của bạn.\nChọn Integrations.\nChọn một route.\nDưới Choose an existing integration, chọn http-crud-tutorial-function.\nChọn Attach integration. Lặp lại các bước 4-6 cho tất cả các route.\nKết quả: "
+},
+{
+	"uri": "/vi/7-test/",
+	"title": "Kiểm tra API của bạn",
+	"tags": [],
+	"description": "",
+	"content": "Để đảm bảo rằng API của bạn đang hoạt động, bạn sử dụng curl.\nĐể lấy URL để gọi API của bạn:\nĐăng nhập vào bảng điều khiển API Gateway tại https://console.aws.amazon.com/apigateway.\nChọn API của bạn.\nGhi lại URL gọi API của bạn. Nó xuất hiện dưới Invoke URL trên trang Details.\nSao chép URL gọi API của bạn. URL đầy đủ trông giống như https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/. Để tạo hoặc cập nhật một mục:\nSử dụng lệnh sau để tạo hoặc cập nhật một mục. Lệnh này bao gồm một body yêu cầu với ID, giá, và tên của mục.\ncurl -X \u0026#34;PUT\u0026#34; -H \u0026#34;Content-Type: application/json\u0026#34; -d \u0026#34;{\\\u0026#34;id\\\u0026#34;: \\\u0026#34;123\\\u0026#34;, \\\u0026#34;price\\\u0026#34;: 12345, \\\u0026#34;name\\\u0026#34;: \\\u0026#34;myitem\\\u0026#34;}\u0026#34; https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/ Để lấy tất cả các mục:\nSử dụng lệnh sau để liệt kê tất cả các mục.\ncurl https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/items Để lấy một mục:\nSử dụng lệnh sau để lấy một mục theo ID của nó.\ncurl https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/items/123 Để xóa một mục:\nSử dụng lệnh sau để xóa một mục.\ncurl -X \u0026#34;DELETE\u0026#34; https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/items/123 "
+},
+{
+	"uri": "/vi/8-clean/",
+	"title": "Dọn dẹp tài nguyên",
+	"tags": [],
+	"description": "",
+	"content": "Để tránh các chi phí không cần thiết, hãy xóa các tài nguyên mà bạn đã tạo trong quá trình bài tập bắt đầu này. Các bước sau đây sẽ xóa HTTP API, hàm Lambda và các tài nguyên liên quan.\nĐể xóa bảng DynamoDB:\nMở bảng điều khiển DynamoDB tại https://console.aws.amazon.com/dynamodb/.\nChọn bảng của bạn.\nChọn Delete table.\nXác nhận lựa chọn của bạn và chọn Delete. Để xóa một HTTP API:\nĐăng nhập vào bảng điều khiển API Gateway tại https://console.aws.amazon.com/apigateway.\nTrên trang APIs, chọn một API. Chọn Actions, sau đó chọn Delete.\nChọn Delete. Để xóa một hàm Lambda:\nĐăng nhập vào bảng điều khiển Lambda tại https://console.aws.amazon.com/lambda.\nTrên trang Functions, chọn một hàm. Chọn Actions, sau đó chọn Delete.\nChọn Delete. Để xóa nhóm log của hàm Lambda:\nTrong bảng điều khiển Amazon CloudWatch, mở trang Log groups. https://console.aws.amazon.com/cloudwatch\nTrên trang Log groups, chọn nhóm log của hàm (/aws/lambda/http-crud-tutorial-function). Chọn Actions, sau đó chọn Delete log group.\nChọn Delete. Để xóa vai trò thực thi của hàm Lambda:\nTrong bảng điều khiển AWS Identity and Access Management, mở trang Roles.\nChọn vai trò của hàm, ví dụ, http-crud-tutorial-role.\nChọn Delete role.\nChọn Yes, delete. "
+},
+{
+	"uri": "/vi/categories/",
+	"title": "Categories",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
+	"uri": "/vi/tags/",
+	"title": "Tags",
+	"tags": [],
+	"description": "",
+	"content": ""
+}]

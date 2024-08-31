@@ -1,0 +1,78 @@
+[
+{
+	"uri": "/",
+	"title": "Create a HTTP CRUD API with Lambda and DynamoDB",
+	"tags": [],
+	"description": "",
+	"content": "Create a HTTP CRUD API with Lambda and DynamoDB Overview In this tutorial, you will create a serverless API to perform create, read, update, and delete operations on items in a DynamoDB table. DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.\nContent Create a DynamoDB Table Create a Lambda Function Create a HTTP API Create Routes Create an Integration Attach Your Integration to Routes Test Your API Clean Up Resources "
+},
+{
+	"uri": "/1-dynamodb/",
+	"title": "Create a DynamoDB Table",
+	"tags": [],
+	"description": "",
+	"content": "You will use a DynamoDB table to store data for your API. Each item will have a unique ID, which we will use as the partition key for the table.\nTo create a DynamoDB table:\nOpen the DynamoDB console at https://console.aws.amazon.com/dynamodb/.\nChoose Create table. For Table name, enter http-crud-tutorial-items.\nFor Partition key, enter id. Choose Create table. "
+},
+{
+	"uri": "/2-lambda/",
+	"title": "Create a Lambda Function",
+	"tags": [],
+	"description": "",
+	"content": "You will create a Lambda function to handle the backend for your API. This Lambda function will perform create, read, update, and delete operations on DynamoDB. The function uses events from API Gateway to determine how to interact with DynamoDB. For simplicity, this tutorial uses a single Lambda function. However, as a best practice, you should create separate functions for each route.\nTo create a Lambda function:\nSign in to the Lambda console at https://console.aws.amazon.com/lambda.\nChoose Create function. For Function name, enter http-crud-tutorial-function.\nFor Runtime, choose either the latest supported Node.js or Python runtime.\nUnder Permissions, choose Change default execution role.\nSelect Create a new role from AWS policy templates. For Role name, enter http-crud-tutorial-role-demo.\nFor Policy templates, choose Simple microservice permissions. This policy grants the Lambda function permission to interact with DynamoDB.\nChoose Create function. Open the Lambda function in the console\u0026rsquo;s code editor, and replace its contents with the following code. Choose Deploy to update your function.\nimport { DynamoDBClient } from \u0026#34;@aws-sdk/client-dynamodb\u0026#34;; import { DynamoDBDocumentClient, ScanCommand, PutCommand, GetCommand, DeleteCommand, } from \u0026#34;@aws-sdk/lib-dynamodb\u0026#34;; const client = new DynamoDBClient({}); const dynamo = DynamoDBDocumentClient.from(client); const tableName = \u0026#34;http-crud-tutorial-items\u0026#34;; export const handler = async (event, context) =\u0026gt; { let body; let statusCode = 200; const headers = { \u0026#34;Content-Type\u0026#34;: \u0026#34;application/json\u0026#34;, }; try { switch (event.routeKey) { case \u0026#34;DELETE /items/{id}\u0026#34;: await dynamo.send( new DeleteCommand({ TableName: tableName, Key: { id: event.pathParameters.id, }, }) ); body = `Deleted item ${event.pathParameters.id}`; break; case \u0026#34;GET /items/{id}\u0026#34;: body = await dynamo.send( new GetCommand({ TableName: tableName, Key: { id: event.pathParameters.id, }, }) ); body = body.Item; break; case \u0026#34;GET /items\u0026#34;: body = await dynamo.send( new ScanCommand({ TableName: tableName }) ); body = body.Items; break; case \u0026#34;PUT /items\u0026#34;: let requestJSON = JSON.parse(event.body); await dynamo.send( new PutCommand({ TableName: tableName, Item: { id: requestJSON.id, price: requestJSON.price, name: requestJSON.name, }, }) ); body = `Put item ${requestJSON.id}`; break; default: throw new Error(`Unsupported route: \u0026#34;${event.routeKey}\u0026#34;`); } } catch (err) { statusCode = 400; body = err.message; } finally { body = JSON.stringify(body); } return { statusCode, body, headers, }; }; "
+},
+{
+	"uri": "/3-httpapi/",
+	"title": "Create an HTTP API",
+	"tags": [],
+	"description": "",
+	"content": "The HTTP API provides an HTTP endpoint for your Lambda function. In this step, you will create a blank API. In the following steps, you will configure the routes and integrations to connect your API with your Lambda function.\nTo create an HTTP API:\nSign in to the API Gateway console at https://console.aws.amazon.com/apigateway.\nChoose Create API, and then for HTTP API, select Build. For API name, enter http-crud-tutorial-api-demo.\nChoose Next. For Configure routes, choose Next to skip creating a route. You will create the routes later. Review the stage that API Gateway creates for you, then choose Next. Choose Create. "
+},
+{
+	"uri": "/4-routes/",
+	"title": "Create Routes",
+	"tags": [],
+	"description": "",
+	"content": "Routes are how you direct API requests to backend resources. A route consists of two parts: the HTTP method and the resource path, for example, GET /items. For this example API, we will create four routes:\nGET /items/{id} GET /items PUT /items DELETE /items/{id} To create routes:\nSign in to the API Gateway console at https://console.aws.amazon.com/apigateway.\nSelect your API. Choose Routes.\nChoose Create. For Method, select GET.\nFor Path, enter /items/{id}. The {id} at the end of the path is a path parameter that API Gateway extracts from the request path when a client sends a request.\nChoose Create. Repeat steps 4-7 for GET /items, DELETE /items/{id}, and PUT /items. "
+},
+{
+	"uri": "/5-integration/",
+	"title": "Create an Integration",
+	"tags": [],
+	"description": "",
+	"content": "You create an integration to connect a route to backend resources. For this example API, you\u0026rsquo;ll create a Lambda integration that you will use for all routes.\nTo create an integration:\nSign in to the API Gateway console at https://console.aws.amazon.com/apigateway.\nSelect your API. Choose Integrations.\nChoose Manage integrations, then select Create. Skip Attach this integration to a route. You will complete this in a later step.\nFor Integration type, select Lambda function.\nFor Lambda function, enter http-crud-tutorial-function.\nChoose Create. "
+},
+{
+	"uri": "/6-attachyourintegration/",
+	"title": "Assign Integration to Routes",
+	"tags": [],
+	"description": "",
+	"content": "For this example API, you will use the same Lambda integration for all routes. Once the integration is assigned to all API routes, your Lambda function will be invoked when a client calls any of your routes.\nTo assign the integration to routes:\nSign in to the API Gateway console at https://console.aws.amazon.com/apigateway.\nSelect your API.\nChoose Integrations.\nSelect a route.\nUnder Choose an existing integration, select http-crud-tutorial-function.\nChoose Attach integration. Repeat steps 4-6 for all routes.\nResult: "
+},
+{
+	"uri": "/7-test/",
+	"title": "Test your API",
+	"tags": [],
+	"description": "",
+	"content": "To make sure your API is working, you use curl.\nTo get the URL to call your API:\nLog in to the API Gateway console at https://console.aws.amazon.com/apigateway.\nSelect your API.\nNote your API call URL. It appears under Invoke URL on the Details page.\nCopy your API call URL. The full URL looks like https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/.\nTo create or update an item:\nUse the following command to create or update an item. This command includes a request body with the item\u0026rsquo;s ID, price, and name. curl -X \u0026#34;PUT\u0026#34; -H \u0026#34;Content-Type: application/json\u0026#34; -d \u0026#34;{\\\u0026#34;id\\\u0026#34;: \\\u0026#34;123\\\u0026#34;, \\\u0026#34;price\\\u0026#34;: 12345, \\\u0026#34;name\\\u0026#34;: \\\u0026#34;myitem\\\u0026#34;}\u0026#34; https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/ ![ConnectPrivate](http://jennieworkshop.s3.ap-southeast-1.amazonaws.com/img2/PUT_ITEM.png) **To get all items:** - Use the following command to list all items. ```bash curl https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/items To get an item:\nUse the following command to get an item by its ID. curl https://f5abcd.execute-api.ap-southeast-1.amazonaws.com/items/123 To delete an item:\nUse the following command to delete an item. "
+},
+{
+	"uri": "/8-clean/",
+	"title": "Clean Up Resources",
+	"tags": [],
+	"description": "",
+	"content": "To avoid unnecessary costs, delete the resources you created during this getting started exercise. The following steps will delete the HTTP API, Lambda function, and related resources.\nTo delete a DynamoDB table:\nOpen the DynamoDB console at https://console.aws.amazon.com/dynamodb/.\nSelect your table.\nChoose Delete table.\nConfirm your choice and select Delete. To delete an HTTP API:\nSign in to the API Gateway console at https://console.aws.amazon.com/apigateway.\nOn the APIs page, select an API. Choose Actions, then select Delete.\nChoose Delete. To delete a Lambda function:\nSign in to the Lambda console at https://console.aws.amazon.com/lambda.\nOn the Functions page, select a function. Choose Actions, then select Delete.\nChoose Delete. To delete the Lambda function\u0026rsquo;s log group:\nIn the Amazon CloudWatch console, open the Log groups page. https://console.aws.amazon.com/cloudwatch\nOn the Log groups page, select the function\u0026rsquo;s log group (/aws/lambda/http-crud-tutorial-function). Choose Actions, then select Delete log group.\nChoose Delete. To delete the Lambda function\u0026rsquo;s execution role:\nIn the AWS Identity and Access Management console, open the Roles page.\nSelect the function\u0026rsquo;s role, for example, http-crud-tutorial-role.\nChoose Delete role.\nChoose Yes, delete. "
+},
+{
+	"uri": "/categories/",
+	"title": "Categories",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
+	"uri": "/tags/",
+	"title": "Tags",
+	"tags": [],
+	"description": "",
+	"content": ""
+}]
